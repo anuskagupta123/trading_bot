@@ -10,3 +10,8 @@ def create_test_database():
     yield
     # optional teardown: drop tables
     Base.metadata.drop_all(bind=engine)
+
+
+def pytest_configure(config):
+    """Ensure DB tables exist before pytest collects tests (pre-import hooks)."""
+    Base.metadata.create_all(bind=engine)
