@@ -18,6 +18,7 @@ venv/
 # Local env files
 .env
 backend/.env
+backend/.env.local
 
 # Local DB
 *.db
