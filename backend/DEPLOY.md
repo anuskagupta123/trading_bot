@@ -27,7 +27,7 @@ uvicorn app.main:app --host 0.0.0.0 --port $PORT
 7. Click **Create Web Service** → Deploy. Render will give you a public URL like `https://trading-platform.onrender.com`.
 
 Notes:
-- Change `DATABASE_URL` in your environment to point to the Postgres database Render provides to switch from SQLite to Postgres.
+- Set `DATABASE_URL` to the Postgres database Render provides. SQLite is not used in production.
 - Every push to the connected branch triggers an automatic redeploy.
 
 CI/CD:
