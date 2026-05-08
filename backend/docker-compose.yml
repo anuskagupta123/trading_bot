@@ -1,16 +1,16 @@
-version: '3.8'
 services:
-  db:
+  postgres:
     image: postgres:15
-    restart: unless-stopped
+    container_name: trading_postgres
+    restart: always
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: trading
-    volumes:
-      - db_data:/var/lib/postgresql/data
+      POSTGRES_PASSWORD: 1234
+      POSTGRES_DB: trading_db
     ports:
       - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
 
 volumes:
-  db_data:
+  postgres_data:
