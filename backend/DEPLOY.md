@@ -28,6 +28,7 @@ uvicorn app.main:app --host 0.0.0.0 --port $PORT
 
 Notes:
 - Set `DATABASE_URL` to the Postgres database Render provides. SQLite is not used in production.
+- The backend runs `alembic upgrade head` on startup, so a fresh Postgres database gets its tables before serving requests.
 - Every push to the connected branch triggers an automatic redeploy.
 
 CI/CD:

@@ -8,13 +8,14 @@ import os
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+config = context.config
+
+# Ensure Alembic has a usable database URL even when the shell hasn't exported one.
+os.environ.setdefault("DATABASE_URL", config.get_main_option("sqlalchemy.url"))
+
 # load app database metadata
 from app.database.database import Base
 target_metadata = Base.metadata
-
-# this is the Alembic Config object, which provides
-# access to the values within the .ini file in use.
-config = context.config
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.

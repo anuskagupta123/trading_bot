@@ -1,3 +1,10 @@
+import os
+
+os.environ.setdefault(
+    "DATABASE_URL",
+    "postgresql+psycopg://postgres:1234@localhost:5432/trading_db",
+)
+
 import pytest
 from app.database.database import Base, engine
 from app.database import models  # noqa: F401
