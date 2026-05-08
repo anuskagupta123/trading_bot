@@ -23,6 +23,7 @@ uvicorn app.main:app --host 0.0.0.0 --port $PORT
  - `ADMIN_TOKEN` (secure admin token for admin endpoints)
  - `WEBHOOK_SECRET` (secret TradingView will send in alert payloads)
  - `ENVIRONMENT` (set to `production`)
+ - `FRONTEND_URL` (your frontend origin, e.g. `https://your-app.vercel.app`)
 
 7. Click **Create Web Service** → Deploy. Render will give you a public URL like `https://trading-platform.onrender.com`.
 
@@ -56,4 +57,5 @@ Requirements:
 - Update your TradingView webhook URL to `https://<your-render-url>/webhook`.
 - Monitor logs on Render and Vercel dashboards.
 - Use environment variables for secrets and DB credentials (do not commit `.env`).
+- Frontend requests are allowed from `FRONTEND_URL`; add more comma-separated origins in `FRONTEND_URLS` if needed.
 

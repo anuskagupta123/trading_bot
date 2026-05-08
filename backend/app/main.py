@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
 import logging
+import os
 import subprocess
 import sys
 
@@ -51,30 +52,64 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="Trading Platform", lifespan=lifespan)   # 👈 create app FIRST
+def get_allowed_origins() -> list[str]:
+    """Build the CORS allowlist from environment variables and local defaults."""
+    origins = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ]
 
-# Attach shared limiter to app state
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    frontend_urls = os.getenv("FRONTEND_URLS", "")
+    if frontend_urls:
+        origins.extend(
+            origin.strip() for origin in frontend_urls.split(",") if origin.strip()
+        )
+
+    frontend_url = os.getenv("FRONTEND_URL", "").strip()
+    if frontend_url:
+        origins.append(frontend_url)
+
+    # Preserve order while removing duplicates.
+    return list(dict.fromkeys(origins))
+
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(name)s: %(message)s')
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
-# 👇 THEN include routers
-app.include_router(webhook.router)
-app.include_router(brokers.router)
-app.include_router(risk.router)
-app.include_router(indicators.router)
-app.include_router(paper_trading.router)
-app.include_router(admin.router)
+def create_app() -> FastAPI:
+    app = FastAPI(title="Trading Platform", lifespan=lifespan)
 
-@app.get("/")
-def root():
-    return {"message": "Trading API is running"}
+    # Attach shared limiter to app state
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=get_allowed_origins(),
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    # 👇 THEN include routers
+    app.include_router(webhook.router)
+    app.include_router(brokers.router)
+    app.include_router(risk.router)
+    app.include_router(indicators.router)
+    app.include_router(paper_trading.router)
+    app.include_router(admin.router)
+
+    @app.get("/")
+    def root():
+        return {"message": "Trading API is running"}
+
+    @app.get("/health")
+    def health_check():
+        return {"status": "ok"}
+
+    return app
+
+
+app = create_app()
