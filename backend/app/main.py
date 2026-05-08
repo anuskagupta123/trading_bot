@@ -7,6 +7,7 @@ import sys
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from sqlalchemy import text
 from app.database.database import engine
 from app.routes import webhook, brokers, risk, indicators, paper_trading, admin   # 👈 import routers
@@ -78,12 +79,27 @@ def get_allowed_origins() -> list[str]:
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(name)s: %(message)s')
 
 
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Add security headers to all responses."""
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'"
+        return response
+
+
 def create_app() -> FastAPI:
     app = FastAPI(title="Trading Platform", lifespan=lifespan)
 
     # Attach shared limiter to app state
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+    # Add security headers middleware
+    app.add_middleware(SecurityHeadersMiddleware)
 
     app.add_middleware(
         CORSMiddleware,
@@ -108,6 +124,32 @@ def create_app() -> FastAPI:
     @app.get("/health")
     def health_check():
         return {"status": "ok"}
+
+    @app.get("/metrics")
+    def metrics():
+        """Return Prometheus-compatible metrics (basic version without prometheus-client)."""
+        import psutil
+        import os
+        cpu_percent = psutil.cpu_percent(interval=0.1)
+        mem = psutil.virtual_memory()
+        disk = psutil.disk_usage('/')
+        metrics_text = f"""# HELP cpu_percent CPU usage percentage
+# TYPE cpu_percent gauge
+cpu_percent {cpu_percent}
+# HELP memory_available_bytes Available memory in bytes
+# TYPE memory_available_bytes gauge
+memory_available_bytes {mem.available}
+# HELP memory_used_bytes Used memory in bytes
+# TYPE memory_used_bytes gauge
+memory_used_bytes {mem.used}
+# HELP disk_used_bytes Used disk space in bytes
+# TYPE disk_used_bytes gauge
+disk_used_bytes {disk.used}
+# HELP disk_free_bytes Free disk space in bytes
+# TYPE disk_free_bytes gauge
+disk_free_bytes {disk.free}
+"""
+        return metrics_text
 
     return app
 

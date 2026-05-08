@@ -1,0 +1,71 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/deploy.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          cd backend
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          cd backend
+          python -m alembic upgrade head
+
+      - name: Run smoke tests
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          cd backend
+          python -m pytest tests/test_frontend_connectivity.py -v
+
+      - name: Check health endpoint
+        run: |
+          cd backend
+          timeout 30 python -c "
+          import subprocess
+          import time
+          import requests
+          
+          # Start app in background
+          proc = subprocess.Popen(['uvicorn', 'app.main:app', '--host', '127.0.0.1', '--port', '8000'], 
+                                   cwd='.')
+          time.sleep(3)
+          
+          try:
+              resp = requests.get('http://127.0.0.1:8000/health', timeout=5)
+              assert resp.status_code == 200, f'Health check failed: {resp.status_code}'
+              print('✓ Health check passed')
+          finally:
+              proc.terminate()
+              proc.wait(timeout=5)
+          " || exit 1
+
+      - name: Notify on success
+        if: success()
+        run: echo "Deployment smoke tests passed"
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "Deployment checks failed"
+          exit 1
